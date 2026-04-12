@@ -1,8 +1,10 @@
 const { Client, GatewayIntentBits } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus, StreamType } = require('@discordjs/voice');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } = require('@discordjs/voice');
 const play = require('play-dl');
-const youtubedl = require('youtube-dl-exec');
+const ytdl = require('@distube/ytdl-core');
 const SpotifyWebApi = require('spotify-web-api-node');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const client = new Client({
@@ -20,10 +22,9 @@ const spotifyApi = new SpotifyWebApi({
 });
 
 const queue = new Map();
+let ytdlAgent = null;
 
 async function initializePlayDl() {
-    const fs = require('fs');
-    const path = require('path');
 
     if (process.env.YOUTUBE_COOKIE) {
         const cookiePath = path.join(__dirname, 'cookies.txt');
@@ -34,6 +35,10 @@ async function initializePlayDl() {
         fs.writeFileSync(cookiePath, cookieContent, 'utf8');
         console.log(`Cookie file written to: ${cookiePath}`);
         console.log(`Cookie file size: ${fs.statSync(cookiePath).size} bytes`);
+
+        ytdlAgent = ytdl.createAgent(JSON.parse(fs.readFileSync(path.join(__dirname, 'node_modules/@distube/ytdl-core/package.json'))), {
+            localAddress: undefined
+        });
 
         try {
             await play.setToken({
@@ -110,10 +115,31 @@ async function playSong(guild, song) {
     }
 
     try {
-        const stream = await play.stream(song.url);
-        const resource = createAudioResource(stream.stream, {
-            inputType: stream.type
+        const cookiePath = path.join(__dirname, 'cookies.txt');
+        const cookies = fs.readFileSync(cookiePath, 'utf8');
+
+        const stream = ytdl(song.url, {
+            filter: 'audioonly',
+            quality: 'highestaudio',
+            highWaterMark: 1 << 25,
+            requestOptions: {
+                headers: {
+                    cookie: cookies.split('\n')
+                        .filter(line => !line.startsWith('#') && line.trim())
+                        .map(line => {
+                            const parts = line.split('\t');
+                            if (parts.length >= 7) {
+                                return `${parts[5]}=${parts[6]}`;
+                            }
+                            return '';
+                        })
+                        .filter(c => c)
+                        .join('; ')
+                }
+            }
         });
+
+        const resource = createAudioResource(stream);
 
         serverQueue.player.play(resource);
         serverQueue.playing = true;
