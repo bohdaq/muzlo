@@ -133,10 +133,13 @@ client.on('messageCreate', async message => {
             if (!player.connected) await player.connect();
 
             // Search for track
+            console.log(`Searching for: ${searchQuery}`);
             const res = await player.search({ query: searchQuery }, message.author);
+            console.log(`Search result:`, res);
 
             if (res.loadType === 'error' || res.loadType === 'empty') {
-                return message.reply('Failed to load the track or no results found.');
+                console.error('Search failed:', res);
+                return message.reply(`Failed to load the track or no results found. Error: ${res.exception?.message || 'Unknown'}`);
             }
 
             // Add track to queue
