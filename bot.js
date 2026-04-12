@@ -20,6 +20,17 @@ const spotifyApi = new SpotifyWebApi({
 
 const queue = new Map();
 
+async function initializePlayDl() {
+    if (process.env.YOUTUBE_COOKIE) {
+        await play.setToken({
+            youtube: {
+                cookie: process.env.YOUTUBE_COOKIE
+            }
+        });
+        console.log('YouTube cookie authentication enabled');
+    }
+}
+
 async function authenticateSpotify() {
     try {
         const data = await spotifyApi.clientCredentialsGrant();
@@ -103,8 +114,9 @@ async function playSong(guild, song) {
     }
 }
 
-client.on('ready', () => {
+client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
+    await initializePlayDl();
     authenticateSpotify();
 });
 

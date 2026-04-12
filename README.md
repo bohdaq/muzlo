@@ -44,6 +44,7 @@ cp .env.example .env
 4. Fill in your credentials in `.env`:
    - **DISCORD_TOKEN**: Get from [Discord Developer Portal](https://discord.com/developers/applications)
    - **SPOTIFY_CLIENT_ID** & **SPOTIFY_CLIENT_SECRET**: Get from [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+   - **YOUTUBE_COOKIE**: (Optional but recommended) See [YOUTUBE_COOKIES.md](YOUTUBE_COOKIES.md) for instructions
 
 ### Getting Discord Bot Token
 
@@ -86,6 +87,11 @@ npm start
 4. Use `/stop` to stop playback
 
 ## Troubleshooting
+
+### YouTube "Sign in to confirm you're not a bot" error
+YouTube is blocking bot requests. You need to add YouTube cookies to your `.env` file:
+- See detailed instructions in [YOUTUBE_COOKIES.md](YOUTUBE_COOKIES.md)
+- This is **required** for YouTube playback to work reliably
 
 ### FFmpeg not found
 Make sure FFmpeg is installed on your system:
