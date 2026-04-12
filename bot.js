@@ -134,9 +134,8 @@ async function playSong(guild, song) {
     }
 }
 
-client.on('ready', async () => {
+client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
-    await initializePlayDl();
     authenticateSpotify();
 });
 
@@ -223,4 +222,7 @@ client.on('messageCreate', async message => {
     }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+(async () => {
+    await initializePlayDl();
+    client.login(process.env.DISCORD_TOKEN);
+})();
