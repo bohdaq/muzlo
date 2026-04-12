@@ -224,6 +224,8 @@ client.on('messageCreate', async message => {
 });
 
 manager.on('trackStart', (player, track) => {
+    console.log(`Track started: ${track.info.title}`);
+    console.log(`Player state:`, { connected: player.connected, playing: player.playing, paused: player.paused });
     const channel = client.channels.cache.get(player.textChannelId);
     if (channel) channel.send(`Now playing: **${track.info.title}**`);
 });
