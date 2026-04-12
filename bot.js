@@ -1,6 +1,7 @@
 const { Client, GatewayIntentBits } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } = require('@discordjs/voice');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus, StreamType } = require('@discordjs/voice');
 const play = require('play-dl');
+const youtubedl = require('youtube-dl-exec');
 const SpotifyWebApi = require('spotify-web-api-node');
 require('dotenv').config();
 
@@ -109,9 +110,24 @@ async function playSong(guild, song) {
     }
 
     try {
-        const stream = await play.stream(song.url);
-        const resource = createAudioResource(stream.stream, {
-            inputType: stream.type
+        const fs = require('fs');
+        const path = require('path');
+        const cookiePath = path.join(__dirname, 'cookies.txt');
+
+        const stream = youtubedl.exec(song.url, {
+            output: '-',
+            quiet: true,
+            noWarnings: true,
+            preferFreeFormats: true,
+            addHeader: [
+                'referer:youtube.com',
+                'user-agent:googlebot'
+            ],
+            ...(fs.existsSync(cookiePath) && { cookies: cookiePath })
+        });
+
+        const resource = createAudioResource(stream.stdout, {
+            inputType: StreamType.Arbitrary
         });
 
         serverQueue.player.play(resource);
