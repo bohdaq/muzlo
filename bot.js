@@ -111,7 +111,8 @@ async function playSong(guild, song) {
         serverQueue.player.play(resource);
         serverQueue.playing = true;
 
-        serverQueue.textChannel.send(`Now playing: **${song.title}**`);
+        const displayTitle = song.title !== 'YouTube Video' ? song.title : 'your requested video';
+        serverQueue.textChannel.send(`Now playing: **${displayTitle}**`);
 
         serverQueue.player.on(AudioPlayerStatus.Idle, () => {
             serverQueue.songs.shift();
@@ -165,11 +166,10 @@ client.on('messageCreate', async message => {
                     return message.reply('Could not find that Spotify track on YouTube.');
                 }
                 songInfo = spotifyTrack;
-            } else if (await play.validate(url) === 'yt_video') {
-                const info = await play.video_info(url);
+            } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
                 songInfo = {
-                    title: info.video_details.title,
-                    url: info.video_details.url
+                    title: 'YouTube Video',
+                    url: url
                 };
             } else {
                 return message.reply('Please provide a valid YouTube or Spotify URL!');
