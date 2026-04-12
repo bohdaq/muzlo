@@ -1,10 +1,7 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } = require('@discordjs/voice');
 const play = require('play-dl');
-const ytdl = require('@distube/ytdl-core');
 const SpotifyWebApi = require('spotify-web-api-node');
-const fs = require('fs');
-const path = require('path');
 require('dotenv').config();
 
 const client = new Client({
@@ -22,42 +19,6 @@ const spotifyApi = new SpotifyWebApi({
 });
 
 const queue = new Map();
-let ytdlAgent = null;
-
-async function initializePlayDl() {
-
-    if (process.env.YOUTUBE_COOKIE) {
-        const cookiePath = path.join(__dirname, 'cookies.txt');
-
-        let cookieContent = process.env.YOUTUBE_COOKIE;
-        cookieContent = cookieContent.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-
-        fs.writeFileSync(cookiePath, cookieContent, 'utf8');
-        console.log(`Cookie file written to: ${cookiePath}`);
-        console.log(`Cookie file size: ${fs.statSync(cookiePath).size} bytes`);
-
-        try {
-            await play.setToken({
-                youtube: {
-                    cookie: cookiePath
-                }
-            });
-            console.log('YouTube cookie authentication enabled');
-
-            console.log('Verifying cookies work...');
-            const testUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-            await play.video_info(testUrl);
-            console.log('✓ Cookies verified and working!');
-        } catch (error) {
-            console.error('✗ Error with YouTube cookies:', error.message);
-            console.error('CRITICAL: Cookies are not working. Bot will not be able to play YouTube videos.');
-            console.error('Please check TROUBLESHOOTING.md and get fresh cookies.');
-        }
-    } else {
-        console.warn('WARNING: No YouTube cookies found. Bot may not work due to YouTube bot detection.');
-        console.warn('Please add YOUTUBE_COOKIE to your .env file. See YOUTUBE_COOKIES.md for instructions.');
-    }
-}
 
 async function authenticateSpotify() {
     try {
@@ -113,25 +74,13 @@ async function playSong(guild, song) {
     }
 
     try {
-        console.log(`Getting stream info for: ${song.url}`);
+        console.log(`Playing: ${song.title}`);
+        console.log(`From URL: ${song.url}`);
 
-        const cookiePath = path.join(__dirname, 'cookies.txt');
-        if (fs.existsSync(cookiePath)) {
-            await play.setToken({
-                youtube: {
-                    cookie: cookiePath
-                }
-            });
-            console.log('Cookies reloaded for this stream');
-        }
+        const stream = await play.stream(song.url);
 
-        const streamInfo = await play.stream(song.url);
-
-        console.log(`Stream type: ${streamInfo.type}`);
-        console.log(`Stream URL obtained successfully`);
-
-        const resource = createAudioResource(streamInfo.stream, {
-            inputType: streamInfo.type
+        const resource = createAudioResource(stream.stream, {
+            inputType: stream.type
         });
 
         serverQueue.player.play(resource);
@@ -194,16 +143,11 @@ client.on('messageCreate', async message => {
             if (url.includes('spotify.com')) {
                 const spotifyTrack = await getSpotifyTrackInfo(url);
                 if (!spotifyTrack) {
-                    return message.reply('Could not find that Spotify track on YouTube.');
+                    return message.reply('Could not find that Spotify track.');
                 }
                 songInfo = spotifyTrack;
-            } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                songInfo = {
-                    title: 'YouTube Video',
-                    url: url
-                };
             } else {
-                return message.reply('Please provide a valid YouTube or Spotify URL!');
+                return message.reply('Please provide a valid Spotify URL! (YouTube is not supported due to bot detection)');
             }
 
             const serverQueue = queue.get(message.guild.id);
@@ -253,7 +197,4 @@ client.on('messageCreate', async message => {
     }
 });
 
-(async () => {
-    await initializePlayDl();
-    client.login(process.env.DISCORD_TOKEN);
-})();
+client.login(process.env.DISCORD_TOKEN);

@@ -4,15 +4,17 @@ A Discord bot that plays music from YouTube and Spotify using simple commands.
 
 ## Features
 
-- 🎵 Play music from YouTube URLs
-- 🎧 Play music from Spotify URLs (converts to YouTube)
+-  Play music from Spotify URLs
 - ⏹️ Stop playback and leave voice channel
 - 📝 Queue system for multiple songs
+- 🔍 Automatic YouTube search for Spotify tracks
 
 ## Commands
 
-- `/play {url}` - Play a song from YouTube or Spotify URL
+- `/play {spotify_url}` - Play a song from Spotify URL
 - `/stop` - Stop the current song and clear the queue
+
+**Note:** YouTube direct URLs are not supported due to YouTube's bot detection. The bot automatically finds YouTube videos for Spotify tracks.
 
 ## Setup
 
@@ -44,7 +46,6 @@ cp .env.example .env
 4. Fill in your credentials in `.env`:
    - **DISCORD_TOKEN**: Get from [Discord Developer Portal](https://discord.com/developers/applications)
    - **SPOTIFY_CLIENT_ID** & **SPOTIFY_CLIENT_SECRET**: Get from [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-   - **YOUTUBE_COOKIE**: (Optional but recommended) See [YOUTUBE_COOKIES.md](YOUTUBE_COOKIES.md) for instructions
 
 ### Getting Discord Bot Token
 
@@ -82,18 +83,14 @@ npm start
 ## Usage
 
 1. Join a voice channel in your Discord server
-2. Use `/play https://www.youtube.com/watch?v=...` or `/play https://open.spotify.com/track/...`
-3. The bot will join your channel and start playing
+2. Use `/play https://open.spotify.com/track/...`
+3. The bot will:
+   - Fetch the track info from Spotify
+   - Search for it on YouTube
+   - Join your channel and start playing
 4. Use `/stop` to stop playback
 
 ## Troubleshooting
-
-### YouTube "Sign in to confirm you're not a bot" error
-YouTube is blocking bot requests. You need to add YouTube cookies to your `.env` file:
-- See detailed instructions in [YOUTUBE_COOKIES.md](YOUTUBE_COOKIES.md)
-- This is **required** for YouTube playback to work reliably
-- **Test your cookies:** Run `node test-cookies.js` to verify they work
-- **Still having issues?** See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed help
 
 ### FFmpeg not found
 Make sure FFmpeg is installed on your system:
