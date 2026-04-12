@@ -31,13 +31,20 @@ async function initializePlayDl() {
         cookieContent = cookieContent.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
 
         fs.writeFileSync(cookiePath, cookieContent, 'utf8');
+        console.log(`Cookie file written to: ${cookiePath}`);
+        console.log(`Cookie file size: ${fs.statSync(cookiePath).size} bytes`);
 
-        await play.setToken({
-            youtube: {
-                cookie: cookiePath
-            }
-        });
-        console.log('YouTube cookie authentication enabled');
+        try {
+            await play.setToken({
+                youtube: {
+                    cookie: cookiePath
+                }
+            });
+            console.log('YouTube cookie authentication enabled');
+        } catch (error) {
+            console.error('Error setting YouTube cookies:', error.message);
+            console.warn('Cookies may be invalid or expired. Please get fresh cookies.');
+        }
     } else {
         console.warn('WARNING: No YouTube cookies found. Bot may not work due to YouTube bot detection.');
         console.warn('Please add YOUTUBE_COOKIE to your .env file. See YOUTUBE_COOKIES.md for instructions.');

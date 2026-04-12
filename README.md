@@ -92,6 +92,8 @@ npm start
 YouTube is blocking bot requests. You need to add YouTube cookies to your `.env` file:
 - See detailed instructions in [YOUTUBE_COOKIES.md](YOUTUBE_COOKIES.md)
 - This is **required** for YouTube playback to work reliably
+- **Test your cookies:** Run `node test-cookies.js` to verify they work
+- **Still having issues?** See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed help
 
 ### FFmpeg not found
 Make sure FFmpeg is installed on your system:
