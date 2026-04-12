@@ -104,9 +104,11 @@ function createServerQueue(connection, textChannel) {
 
 async function playSong(guild, song) {
     const serverQueue = queue.get(guild.id);
-    if (!song) {
-        serverQueue.connection.destroy();
-        queue.delete(guild.id);
+    if (!song || !serverQueue) {
+        if (serverQueue) {
+            serverQueue.connection.destroy();
+            queue.delete(guild.id);
+        }
         return;
     }
 
@@ -114,25 +116,34 @@ async function playSong(guild, song) {
         const cookiePath = path.join(__dirname, 'cookies.txt');
         const cookies = fs.readFileSync(cookiePath, 'utf8');
 
+        const cookieHeader = cookies.split('\n')
+            .filter(line => !line.startsWith('#') && line.trim())
+            .map(line => {
+                const parts = line.split('\t');
+                if (parts.length >= 7) {
+                    return `${parts[5]}=${parts[6]}`;
+                }
+                return '';
+            })
+            .filter(c => c)
+            .join('; ');
+
+        console.log(`Streaming from: ${song.url}`);
+        console.log(`Cookie header length: ${cookieHeader.length} chars`);
+
         const stream = ytdl(song.url, {
             filter: 'audioonly',
             quality: 'highestaudio',
             highWaterMark: 1 << 25,
             requestOptions: {
                 headers: {
-                    cookie: cookies.split('\n')
-                        .filter(line => !line.startsWith('#') && line.trim())
-                        .map(line => {
-                            const parts = line.split('\t');
-                            if (parts.length >= 7) {
-                                return `${parts[5]}=${parts[6]}`;
-                            }
-                            return '';
-                        })
-                        .filter(c => c)
-                        .join('; ')
+                    cookie: cookieHeader
                 }
             }
+        });
+
+        stream.on('error', (err) => {
+            console.error('Stream error:', err.message);
         });
 
         const resource = createAudioResource(stream);
@@ -157,10 +168,15 @@ async function playSong(guild, song) {
 
         serverQueue.connection.subscribe(serverQueue.player);
     } catch (error) {
-        console.error('Error in playSong:', error);
-        serverQueue.textChannel.send('Failed to play the song.');
-        serverQueue.songs.shift();
-        playSong(guild, serverQueue.songs[0]);
+        console.error('Error in playSong:', error.message);
+        console.error('Full error:', error);
+        if (serverQueue && serverQueue.textChannel) {
+            serverQueue.textChannel.send('Failed to play the song. Check console for details.');
+        }
+        if (serverQueue && serverQueue.songs) {
+            serverQueue.songs.shift();
+            playSong(guild, serverQueue.songs[0]);
+        }
     }
 }
 
