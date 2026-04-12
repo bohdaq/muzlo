@@ -14,7 +14,9 @@ YouTube is blocking bot requests. To fix this, you need to provide your YouTube 
 
 4. Open the downloaded `cookies.txt` file
 
-5. Copy the entire content (including the header comments) and add it to your `.env` file:
+5. Copy the entire content and add it to your `.env` file in **one of two ways**:
+
+   **Option A: Multi-line (easier to read)**
    ```
    YOUTUBE_COOKIE="# Netscape HTTP Cookie File
    # This is a generated file! Do not edit.
@@ -24,10 +26,16 @@ YouTube is blocking bot requests. To fix this, you need to provide your YouTube 
    ..."
    ```
    
+   **Option B: Single-line with \n (more reliable)**
+   Replace all line breaks with `\n` and tabs with `\t`:
+   ```
+   YOUTUBE_COOKIE="# Netscape HTTP Cookie File\n# This is a generated file! Do not edit.\n\n.youtube.com\tTRUE\t/\tTRUE\t...\n.youtube.com\tTRUE\t/\tFALSE\t..."
+   ```
+   
    **Important:** 
-   - Wrap the entire cookie content in quotes
+   - Wrap the entire cookie content in double quotes
    - Keep all the lines including headers
-   - Don't modify the cookie content
+   - The bot will automatically convert `\n` to newlines and `\t` to tabs
 
 ## Method 2: Manual Cookie Extraction
 

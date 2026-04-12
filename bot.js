@@ -26,7 +26,11 @@ async function initializePlayDl() {
 
     if (process.env.YOUTUBE_COOKIE) {
         const cookiePath = path.join(__dirname, 'cookies.txt');
-        fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIE);
+
+        let cookieContent = process.env.YOUTUBE_COOKIE;
+        cookieContent = cookieContent.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+
+        fs.writeFileSync(cookiePath, cookieContent, 'utf8');
 
         await play.setToken({
             youtube: {
