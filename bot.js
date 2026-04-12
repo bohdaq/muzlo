@@ -36,10 +36,6 @@ async function initializePlayDl() {
         console.log(`Cookie file written to: ${cookiePath}`);
         console.log(`Cookie file size: ${fs.statSync(cookiePath).size} bytes`);
 
-        ytdlAgent = ytdl.createAgent(JSON.parse(fs.readFileSync(path.join(__dirname, 'node_modules/@distube/ytdl-core/package.json'))), {
-            localAddress: undefined
-        });
-
         try {
             await play.setToken({
                 youtube: {
