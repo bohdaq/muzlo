@@ -113,44 +113,26 @@ async function playSong(guild, song) {
     }
 
     try {
+        console.log(`Getting stream info for: ${song.url}`);
+
         const cookiePath = path.join(__dirname, 'cookies.txt');
-        const cookies = fs.readFileSync(cookiePath, 'utf8');
-
-        const cookieArray = cookies.split('\n')
-            .filter(line => !line.startsWith('#') && line.trim())
-            .map(line => {
-                const parts = line.split('\t');
-                if (parts.length >= 7) {
-                    return {
-                        domain: parts[0],
-                        path: parts[2],
-                        secure: parts[3] === 'TRUE',
-                        expirationDate: parseInt(parts[4]),
-                        name: parts[5],
-                        value: parts[6]
-                    };
+        if (fs.existsSync(cookiePath)) {
+            await play.setToken({
+                youtube: {
+                    cookie: cookiePath
                 }
-                return null;
-            })
-            .filter(c => c !== null);
+            });
+            console.log('Cookies reloaded for this stream');
+        }
 
-        console.log(`Streaming from: ${song.url}`);
-        console.log(`Cookies loaded: ${cookieArray.length} cookies`);
+        const streamInfo = await play.stream(song.url);
 
-        const stream = ytdl(song.url, {
-            filter: 'audioonly',
-            quality: 'highestaudio',
-            highWaterMark: 1 << 25,
-            requestOptions: {
-                cookies: cookieArray
-            }
+        console.log(`Stream type: ${streamInfo.type}`);
+        console.log(`Stream URL obtained successfully`);
+
+        const resource = createAudioResource(streamInfo.stream, {
+            inputType: streamInfo.type
         });
-
-        stream.on('error', (err) => {
-            console.error('Stream error:', err.message);
-        });
-
-        const resource = createAudioResource(stream);
 
         serverQueue.player.play(resource);
         serverQueue.playing = true;
