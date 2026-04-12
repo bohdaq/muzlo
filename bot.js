@@ -116,29 +116,33 @@ async function playSong(guild, song) {
         const cookiePath = path.join(__dirname, 'cookies.txt');
         const cookies = fs.readFileSync(cookiePath, 'utf8');
 
-        const cookieHeader = cookies.split('\n')
+        const cookieArray = cookies.split('\n')
             .filter(line => !line.startsWith('#') && line.trim())
             .map(line => {
                 const parts = line.split('\t');
                 if (parts.length >= 7) {
-                    return `${parts[5]}=${parts[6]}`;
+                    return {
+                        domain: parts[0],
+                        path: parts[2],
+                        secure: parts[3] === 'TRUE',
+                        expirationDate: parseInt(parts[4]),
+                        name: parts[5],
+                        value: parts[6]
+                    };
                 }
-                return '';
+                return null;
             })
-            .filter(c => c)
-            .join('; ');
+            .filter(c => c !== null);
 
         console.log(`Streaming from: ${song.url}`);
-        console.log(`Cookie header length: ${cookieHeader.length} chars`);
+        console.log(`Cookies loaded: ${cookieArray.length} cookies`);
 
         const stream = ytdl(song.url, {
             filter: 'audioonly',
             quality: 'highestaudio',
             highWaterMark: 1 << 25,
             requestOptions: {
-                headers: {
-                    cookie: cookieHeader
-                }
+                cookies: cookieArray
             }
         });
 
