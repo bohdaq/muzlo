@@ -116,12 +116,8 @@ client.on('messageCreate', async message => {
                 }
                 searchQuery = spotifyTrack.query;
                 trackTitle = spotifyTrack.title;
-            } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                // Direct YouTube URL
-                searchQuery = url;
-                trackTitle = 'YouTube Video';
             } else {
-                return message.reply('Please provide a valid Spotify or YouTube URL!');
+                return message.reply('Please provide a valid Spotify URL!');
             }
 
             // Create or get player
