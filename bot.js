@@ -132,9 +132,9 @@ client.on('messageCreate', async message => {
             // Connect to voice channel
             if (!player.connected) await player.connect();
 
-            // Search for track
-            console.log(`Searching for: ${searchQuery}`);
-            const res = await player.search({ query: searchQuery }, message.author);
+            // Search for track on SoundCloud (no bot detection)
+            console.log(`Searching SoundCloud for: ${searchQuery}`);
+            const res = await player.search({ query: `scsearch:${searchQuery}` }, message.author);
             console.log(`Search result:`, res);
 
             if (res.loadType === 'error' || res.loadType === 'empty') {
