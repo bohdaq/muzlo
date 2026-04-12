@@ -110,24 +110,9 @@ async function playSong(guild, song) {
     }
 
     try {
-        const fs = require('fs');
-        const path = require('path');
-        const cookiePath = path.join(__dirname, 'cookies.txt');
-
-        const stream = youtubedl.exec(song.url, {
-            output: '-',
-            quiet: true,
-            noWarnings: true,
-            preferFreeFormats: true,
-            addHeader: [
-                'referer:youtube.com',
-                'user-agent:googlebot'
-            ],
-            ...(fs.existsSync(cookiePath) && { cookies: cookiePath })
-        });
-
-        const resource = createAudioResource(stream.stdout, {
-            inputType: StreamType.Arbitrary
+        const stream = await play.stream(song.url);
+        const resource = createAudioResource(stream.stream, {
+            inputType: stream.type
         });
 
         serverQueue.player.play(resource);
