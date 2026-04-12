@@ -1,5 +1,5 @@
 const { Client, GatewayIntentBits } = require('discord.js');
-const { Manager } = require('erela.js');
+const { LavalinkManager } = require('lavalink-client');
 const SpotifyWebApi = require('spotify-web-api-node');
 require('dotenv').config();
 
@@ -18,17 +18,19 @@ const spotifyApi = new SpotifyWebApi({
 });
 
 // Initialize Lavalink Manager
-const manager = new Manager({
+const manager = new LavalinkManager({
     nodes: [
         {
+            authorization: 'youshallnotpass',
             host: 'localhost',
             port: 2333,
-            password: 'youshallnotpass',
+            id: 'main-node'
         }
     ],
-    send: (id, payload) => {
-        const guild = client.guilds.cache.get(id);
-        if (guild) guild.shard.send(payload);
+    sendToShard: (guildId, payload) => client.guilds.cache.get(guildId)?.shard?.send(payload),
+    client: {
+        id: process.env.CLIENT_ID || '',
+        username: 'Muzlo'
     }
 });
 
@@ -37,7 +39,7 @@ async function authenticateSpotify() {
         const data = await spotifyApi.clientCredentialsGrant();
         spotifyApi.setAccessToken(data.body['access_token']);
         console.log('Spotify authenticated successfully');
-        
+
         setTimeout(authenticateSpotify, data.body['expires_in'] * 1000 - 60000);
     } catch (error) {
         console.error('Error authenticating with Spotify:', error);
@@ -48,7 +50,7 @@ async function getSpotifyTrackInfo(url) {
     try {
         const trackId = url.split('/track/')[1].split('?')[0];
         const track = await spotifyApi.getTrack(trackId);
-        
+
         const searchQuery = `${track.body.artists[0].name} ${track.body.name}`;
         return {
             title: `${track.body.artists[0].name} - ${track.body.name}`,
@@ -60,20 +62,29 @@ async function getSpotifyTrackInfo(url) {
     }
 }
 
-client.on('ready', () => {
+client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
-    manager.init(client.user.id);
+    manager.options.client.id = client.user.id;
+    await manager.init(client.user);
     authenticateSpotify();
 });
 
-client.on('raw', (d) => manager.updateVoiceState(d));
-
-manager.on('nodeConnect', node => {
-    console.log(`Lavalink node "${node.options.identifier}" connected`);
+client.on('raw', (d) => {
+    if (d.t === 'VOICE_SERVER_UPDATE' || d.t === 'VOICE_STATE_UPDATE') {
+        manager.sendRawData(d);
+    }
 });
 
-manager.on('nodeError', (node, error) => {
-    console.error(`Lavalink node "${node.options.identifier}" error:`, error.message);
+manager.nodeManager.on('connect', (node) => {
+    console.log(`Lavalink node "${node.id}" connected`);
+});
+
+manager.nodeManager.on('disconnect', (node, reason) => {
+    console.log(`Lavalink node "${node.id}" disconnected:`, reason);
+});
+
+manager.nodeManager.on('error', (node, error) => {
+    console.error(`Lavalink node "${node.id}" error:`, error.message);
 });
 
 client.on('messageCreate', async message => {
@@ -110,39 +121,36 @@ client.on('messageCreate', async message => {
             }
 
             // Create or get player
-            const player = manager.create({
-                guild: message.guild.id,
-                voiceChannel: message.member.voice.channel.id,
-                textChannel: message.channel.id,
-                selfDeafen: true
+            const player = manager.createPlayer({
+                guildId: message.guild.id,
+                voiceChannelId: message.member.voice.channel.id,
+                textChannelId: message.channel.id,
+                selfDeaf: true,
+                selfMute: false
             });
 
             // Connect to voice channel
-            if (!player.connected) player.connect();
+            if (!player.connected) await player.connect();
 
             // Search for track
-            const res = await manager.search(searchQuery, message.author);
+            const res = await player.search({ query: searchQuery }, message.author);
 
-            if (res.loadType === 'LOAD_FAILED') {
-                return message.reply('Failed to load the track.');
-            }
-
-            if (res.loadType === 'NO_MATCHES') {
-                return message.reply('No results found.');
+            if (res.loadType === 'error' || res.loadType === 'empty') {
+                return message.reply('Failed to load the track or no results found.');
             }
 
             // Add track to queue
-            if (res.loadType === 'PLAYLIST_LOADED') {
+            if (res.loadType === 'playlist') {
                 player.queue.add(res.tracks);
                 message.reply(`Added playlist: **${res.playlist.name}** (${res.tracks.length} tracks)`);
             } else {
                 player.queue.add(res.tracks[0]);
-                message.reply(`Added to queue: **${trackTitle || res.tracks[0].title}**`);
+                message.reply(`Added to queue: **${trackTitle || res.tracks[0].info.title}**`);
             }
 
             // Play if not already playing
-            if (!player.playing && !player.paused && !player.queue.size) {
-                player.play();
+            if (!player.playing && player.queue.tracks.length > 0) {
+                await player.play();
             }
 
         } catch (error) {
@@ -152,7 +160,7 @@ client.on('messageCreate', async message => {
     }
 
     if (command === 'stop') {
-        const player = manager.get(message.guild.id);
+        const player = manager.getPlayer(message.guild.id);
 
         if (!player) {
             return message.reply('There is no music playing!');
@@ -167,7 +175,7 @@ client.on('messageCreate', async message => {
     }
 
     if (command === 'skip') {
-        const player = manager.get(message.guild.id);
+        const player = manager.getPlayer(message.guild.id);
 
         if (!player) {
             return message.reply('There is no music playing!');
@@ -177,35 +185,34 @@ client.on('messageCreate', async message => {
             return message.reply('You need to be in a voice channel to skip!');
         }
 
-        player.stop();
+        await player.skip();
         message.reply('Skipped to the next song.');
     }
 
     if (command === 'queue') {
-        const player = manager.get(message.guild.id);
+        const player = manager.getPlayer(message.guild.id);
 
         if (!player) {
             return message.reply('There is no music playing!');
         }
 
-        const queue = player.queue;
         const current = player.queue.current;
 
         if (!current) {
             return message.reply('The queue is empty.');
         }
 
-        let queueString = `**Now Playing:**\n${current.title}\n\n**Queue:**\n`;
+        let queueString = `**Now Playing:**\n${current.info.title}\n\n**Queue:**\n`;
 
-        if (queue.length === 0) {
+        if (player.queue.tracks.length === 0) {
             queueString += 'Empty';
         } else {
-            queueString += queue.slice(0, 10).map((track, i) => {
-                return `${i + 1}. ${track.title}`;
+            queueString += player.queue.tracks.slice(0, 10).map((track, i) => {
+                return `${i + 1}. ${track.info.title}`;
             }).join('\n');
 
-            if (queue.length > 10) {
-                queueString += `\n\n...and ${queue.length - 10} more`;
+            if (player.queue.tracks.length > 10) {
+                queueString += `\n\n...and ${player.queue.tracks.length - 10} more`;
             }
         }
 
@@ -214,13 +221,13 @@ client.on('messageCreate', async message => {
 });
 
 manager.on('trackStart', (player, track) => {
-    const channel = client.channels.cache.get(player.textChannel);
-    channel.send(`Now playing: **${track.title}**`);
+    const channel = client.channels.cache.get(player.textChannelId);
+    if (channel) channel.send(`Now playing: **${track.info.title}**`);
 });
 
 manager.on('queueEnd', (player) => {
-    const channel = client.channels.cache.get(player.textChannel);
-    channel.send('Queue finished. Leaving voice channel.');
+    const channel = client.channels.cache.get(player.textChannelId);
+    if (channel) channel.send('Queue finished. Leaving voice channel.');
     player.destroy();
 });
 
