@@ -14,10 +14,20 @@ YouTube is blocking bot requests. To fix this, you need to provide your YouTube 
 
 4. Open the downloaded `cookies.txt` file
 
-5. Copy the entire content and add it to your `.env` file:
+5. Copy the entire content (including the header comments) and add it to your `.env` file:
    ```
-   YOUTUBE_COOKIE=<paste entire cookies.txt content here>
+   YOUTUBE_COOKIE="# Netscape HTTP Cookie File
+   # This is a generated file! Do not edit.
+   
+   .youtube.com	TRUE	/	TRUE	...
+   .youtube.com	TRUE	/	FALSE	...
+   ..."
    ```
+   
+   **Important:** 
+   - Wrap the entire cookie content in quotes
+   - Keep all the lines including headers
+   - Don't modify the cookie content
 
 ## Method 2: Manual Cookie Extraction
 

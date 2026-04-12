@@ -21,13 +21,22 @@ const spotifyApi = new SpotifyWebApi({
 const queue = new Map();
 
 async function initializePlayDl() {
+    const fs = require('fs');
+    const path = require('path');
+
     if (process.env.YOUTUBE_COOKIE) {
+        const cookiePath = path.join(__dirname, 'cookies.txt');
+        fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIE);
+
         await play.setToken({
             youtube: {
-                cookie: process.env.YOUTUBE_COOKIE
+                cookie: cookiePath
             }
         });
         console.log('YouTube cookie authentication enabled');
+    } else {
+        console.warn('WARNING: No YouTube cookies found. Bot may not work due to YouTube bot detection.');
+        console.warn('Please add YOUTUBE_COOKIE to your .env file. See YOUTUBE_COOKIES.md for instructions.');
     }
 }
 
