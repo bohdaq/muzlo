@@ -41,9 +41,15 @@ async function initializePlayDl() {
                 }
             });
             console.log('YouTube cookie authentication enabled');
+
+            console.log('Verifying cookies work...');
+            const testUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+            await play.video_info(testUrl);
+            console.log('✓ Cookies verified and working!');
         } catch (error) {
-            console.error('Error setting YouTube cookies:', error.message);
-            console.warn('Cookies may be invalid or expired. Please get fresh cookies.');
+            console.error('✗ Error with YouTube cookies:', error.message);
+            console.error('CRITICAL: Cookies are not working. Bot will not be able to play YouTube videos.');
+            console.error('Please check TROUBLESHOOTING.md and get fresh cookies.');
         }
     } else {
         console.warn('WARNING: No YouTube cookies found. Bot may not work due to YouTube bot detection.');
