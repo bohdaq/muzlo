@@ -1,6 +1,6 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } = require('@discordjs/voice');
-const ytdl = require('ytdl-core');
+const ytdl = require('@distube/ytdl-core');
 const SpotifyWebApi = require('spotify-web-api-node');
 const yts = require('yt-search');
 require('dotenv').config();
@@ -26,7 +26,7 @@ async function authenticateSpotify() {
         const data = await spotifyApi.clientCredentialsGrant();
         spotifyApi.setAccessToken(data.body['access_token']);
         console.log('Spotify authenticated successfully');
-        
+
         setTimeout(authenticateSpotify, data.body['expires_in'] * 1000 - 60000);
     } catch (error) {
         console.error('Error authenticating with Spotify:', error);
@@ -41,7 +41,7 @@ async function getSpotifyTrackInfo(url) {
         const track = await spotifyApi.getTrack(trackId);
         const searchQuery = `${track.body.artists[0].name} ${track.body.name}`;
         const searchResult = await yts(searchQuery);
-        
+
         if (searchResult.videos.length > 0) {
             return {
                 title: track.body.name,
