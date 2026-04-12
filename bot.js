@@ -1,8 +1,7 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } = require('@discordjs/voice');
-const ytdl = require('@distube/ytdl-core');
+const play = require('play-dl');
 const SpotifyWebApi = require('spotify-web-api-node');
-const yts = require('yt-search');
 require('dotenv').config();
 
 const client = new Client({
@@ -40,13 +39,12 @@ async function getSpotifyTrackInfo(url) {
     try {
         const track = await spotifyApi.getTrack(trackId);
         const searchQuery = `${track.body.artists[0].name} ${track.body.name}`;
-        const searchResult = await yts(searchQuery);
+        const searchResult = await play.search(searchQuery, { limit: 1 });
 
-        if (searchResult.videos.length > 0) {
+        if (searchResult.length > 0) {
             return {
-                title: track.body.name,
-                url: searchResult.videos[0].url,
-                artist: track.body.artists[0].name
+                title: `${track.body.artists[0].name} - ${track.body.name}`,
+                url: searchResult[0].url
             };
         }
     } catch (error) {
@@ -74,13 +72,11 @@ async function playSong(guild, song) {
     }
 
     try {
-        const stream = ytdl(song.url, {
-            filter: 'audioonly',
-            quality: 'highestaudio',
-            highWaterMark: 1 << 25
+        const stream = await play.stream(song.url);
+        const resource = createAudioResource(stream.stream, {
+            inputType: stream.type
         });
 
-        const resource = createAudioResource(stream);
         serverQueue.player.play(resource);
         serverQueue.playing = true;
 
@@ -137,15 +133,12 @@ client.on('messageCreate', async message => {
                 if (!spotifyTrack) {
                     return message.reply('Could not find that Spotify track on YouTube.');
                 }
+                songInfo = spotifyTrack;
+            } else if (await play.validate(url) === 'yt_video') {
+                const info = await play.video_info(url);
                 songInfo = {
-                    title: `${spotifyTrack.artist} - ${spotifyTrack.title}`,
-                    url: spotifyTrack.url
-                };
-            } else if (ytdl.validateURL(url)) {
-                const info = await ytdl.getInfo(url);
-                songInfo = {
-                    title: info.videoDetails.title,
-                    url: info.videoDetails.video_url
+                    title: info.video_details.title,
+                    url: info.video_details.url
                 };
             } else {
                 return message.reply('Please provide a valid YouTube or Spotify URL!');
