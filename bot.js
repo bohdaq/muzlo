@@ -98,11 +98,13 @@ async function getSpotifyPlaylistInfo(url) {
         const playlistId = playlistPart.split('?')[0].split('/')[0];
         console.log('Fetching Spotify playlist:', playlistId);
 
-        const playlist = await spotifyApi.getPlaylist(playlistId);
+        // Fetch playlist with all tracks (handle pagination)
+        const playlist = await spotifyApi.getPlaylist(playlistId, { limit: 100 });
         const tracks = [];
 
+        // Add tracks from first page
         for (const item of playlist.body.tracks.items) {
-            if (item.track) {
+            if (item.track && item.track.artists && item.track.artists.length > 0) {
                 const searchQuery = `${item.track.artists[0].name} ${item.track.name}`;
                 tracks.push({
                     title: `${item.track.artists[0].name} - ${item.track.name}`,
@@ -111,12 +113,32 @@ async function getSpotifyPlaylistInfo(url) {
             }
         }
 
+        // Fetch remaining tracks if playlist has more than 100
+        let offset = 100;
+        while (playlist.body.tracks.next) {
+            const nextPage = await spotifyApi.getPlaylistTracks(playlistId, { limit: 100, offset });
+            for (const item of nextPage.body.items) {
+                if (item.track && item.track.artists && item.track.artists.length > 0) {
+                    const searchQuery = `${item.track.artists[0].name} ${item.track.name}`;
+                    tracks.push({
+                        title: `${item.track.artists[0].name} - ${item.track.name}`,
+                        query: searchQuery
+                    });
+                }
+            }
+            offset += 100;
+            if (!nextPage.body.next) break;
+        }
+
         return {
             name: playlist.body.name,
             tracks: tracks
         };
     } catch (error) {
         console.error('Error fetching Spotify playlist:', error.message || error);
+        if (error.body) {
+            console.error('Spotify API error details:', error.body);
+        }
         return null;
     }
 }
@@ -172,8 +194,11 @@ client.on('messageCreate', async message => {
             if (url.includes('spotify.com/playlist/')) {
                 // Handle playlist
                 const spotifyPlaylist = await getSpotifyPlaylistInfo(url);
-                if (!spotifyPlaylist || spotifyPlaylist.tracks.length === 0) {
-                    return message.reply('Could not find that Spotify playlist or it is empty.');
+                if (!spotifyPlaylist) {
+                    return message.reply('Could not access that Spotify playlist. It may be private, region-locked, or the URL is invalid. Try a different playlist or make sure it\'s public.');
+                }
+                if (spotifyPlaylist.tracks.length === 0) {
+                    return message.reply('That Spotify playlist is empty!');
                 }
                 isPlaylist = true;
                 playlistName = spotifyPlaylist.name;
