@@ -42,13 +42,31 @@ async function authenticateSpotify() {
 
         setTimeout(authenticateSpotify, data.body['expires_in'] * 1000 - 60000);
     } catch (error) {
-        console.error('Error authenticating with Spotify:', error);
+        console.error('Error authenticating with Spotify:', error.message || error);
+        // Retry after 30 seconds on network errors
+        console.log('Retrying Spotify authentication in 30 seconds...');
+        setTimeout(authenticateSpotify, 30000);
     }
 }
 
 async function getSpotifyTrackInfo(url) {
     try {
-        const trackId = url.split('/track/')[1].split('?')[0];
+        // Validate URL format
+        if (!url || !url.includes('spotify.com/track/')) {
+            console.error('Invalid Spotify URL format:', url);
+            return null;
+        }
+
+        // Extract track ID
+        const trackPart = url.split('/track/')[1];
+        if (!trackPart) {
+            console.error('Could not extract track ID from URL:', url);
+            return null;
+        }
+
+        const trackId = trackPart.split('?')[0].split('/')[0];
+        console.log('Fetching Spotify track:', trackId);
+
         const track = await spotifyApi.getTrack(trackId);
 
         const searchQuery = `${track.body.artists[0].name} ${track.body.name}`;
@@ -57,7 +75,7 @@ async function getSpotifyTrackInfo(url) {
             query: searchQuery
         };
     } catch (error) {
-        console.error('Error fetching Spotify track:', error);
+        console.error('Error fetching Spotify track:', error.message || error);
         return null;
     }
 }
@@ -120,13 +138,16 @@ client.on('messageCreate', async message => {
                 return message.reply('Please provide a valid Spotify URL!');
             }
 
-            // Create or get player
+            // Create or get player with best quality settings
             const player = manager.createPlayer({
                 guildId: message.guild.id,
                 voiceChannelId: message.member.voice.channel.id,
                 textChannelId: message.channel.id,
                 selfDeaf: true,
-                selfMute: false
+                selfMute: false,
+                volume: 100,
+                instaUpdateFiltersFix: true,
+                applyVolumeAsFilter: false
             });
 
             // Connect to voice channel
