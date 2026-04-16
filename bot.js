@@ -99,18 +99,20 @@ async function getSpotifyPlaylistInfo(url) {
         console.log('Fetching Spotify playlist:', playlistId);
 
         // Fetch playlist with all tracks (handle pagination)
-        const playlist = await spotifyApi.getPlaylist(playlistId, { limit: 100 });
+        // Note: We need to explicitly request tracks using getPlaylistTracks
+        const playlistInfo = await spotifyApi.getPlaylist(playlistId);
+        const playlistTracks = await spotifyApi.getPlaylistTracks(playlistId, { limit: 100 });
 
         // Validate response
-        if (!playlist || !playlist.body || !playlist.body.tracks || !playlist.body.tracks.items) {
-            console.error('Invalid playlist response structure:', playlist);
+        if (!playlistTracks || !playlistTracks.body || !playlistTracks.body.items) {
+            console.error('Invalid playlist tracks response:', playlistTracks);
             return null;
         }
 
         const tracks = [];
 
         // Add tracks from first page
-        for (const item of playlist.body.tracks.items) {
+        for (const item of playlistTracks.body.items) {
             if (item.track && item.track.artists && item.track.artists.length > 0) {
                 const searchQuery = `${item.track.artists[0].name} ${item.track.name}`;
                 tracks.push({
@@ -122,7 +124,7 @@ async function getSpotifyPlaylistInfo(url) {
 
         // Fetch remaining tracks if playlist has more than 100
         let offset = 100;
-        while (playlist.body.tracks.next) {
+        while (playlistTracks.body.next) {
             const nextPage = await spotifyApi.getPlaylistTracks(playlistId, { limit: 100, offset });
             for (const item of nextPage.body.items) {
                 if (item.track && item.track.artists && item.track.artists.length > 0) {
@@ -138,7 +140,7 @@ async function getSpotifyPlaylistInfo(url) {
         }
 
         return {
-            name: playlist.body.name,
+            name: playlistInfo.body.name,
             tracks: tracks
         };
     } catch (error) {
