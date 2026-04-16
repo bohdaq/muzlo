@@ -100,6 +100,13 @@ async function getSpotifyPlaylistInfo(url) {
 
         // Fetch playlist with all tracks (handle pagination)
         const playlist = await spotifyApi.getPlaylist(playlistId, { limit: 100 });
+
+        // Validate response
+        if (!playlist || !playlist.body || !playlist.body.tracks || !playlist.body.tracks.items) {
+            console.error('Invalid playlist response structure:', playlist);
+            return null;
+        }
+
         const tracks = [];
 
         // Add tracks from first page
@@ -137,7 +144,10 @@ async function getSpotifyPlaylistInfo(url) {
     } catch (error) {
         console.error('Error fetching Spotify playlist:', error.message || error);
         if (error.body) {
-            console.error('Spotify API error details:', error.body);
+            console.error('Spotify API error details:', JSON.stringify(error.body, null, 2));
+        }
+        if (error.statusCode) {
+            console.error('HTTP Status Code:', error.statusCode);
         }
         return null;
     }
