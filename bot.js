@@ -80,6 +80,47 @@ async function getSpotifyTrackInfo(url) {
     }
 }
 
+async function getSpotifyPlaylistInfo(url) {
+    try {
+        // Validate URL format
+        if (!url || !url.includes('spotify.com/playlist/')) {
+            console.error('Invalid Spotify playlist URL format:', url);
+            return null;
+        }
+
+        // Extract playlist ID
+        const playlistPart = url.split('/playlist/')[1];
+        if (!playlistPart) {
+            console.error('Could not extract playlist ID from URL:', url);
+            return null;
+        }
+
+        const playlistId = playlistPart.split('?')[0].split('/')[0];
+        console.log('Fetching Spotify playlist:', playlistId);
+
+        const playlist = await spotifyApi.getPlaylist(playlistId);
+        const tracks = [];
+
+        for (const item of playlist.body.tracks.items) {
+            if (item.track) {
+                const searchQuery = `${item.track.artists[0].name} ${item.track.name}`;
+                tracks.push({
+                    title: `${item.track.artists[0].name} - ${item.track.name}`,
+                    query: searchQuery
+                });
+            }
+        }
+
+        return {
+            name: playlist.body.name,
+            tracks: tracks
+        };
+    } catch (error) {
+        console.error('Error fetching Spotify playlist:', error.message || error);
+        return null;
+    }
+}
+
 client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
     manager.options.client.id = client.user.id;
@@ -124,18 +165,28 @@ client.on('messageCreate', async message => {
         const url = args[0];
 
         try {
-            let searchQuery;
-            let trackTitle;
+            let searchQueries = [];
+            let isPlaylist = false;
+            let playlistName = '';
 
-            if (url.includes('spotify.com')) {
+            if (url.includes('spotify.com/playlist/')) {
+                // Handle playlist
+                const spotifyPlaylist = await getSpotifyPlaylistInfo(url);
+                if (!spotifyPlaylist || spotifyPlaylist.tracks.length === 0) {
+                    return message.reply('Could not find that Spotify playlist or it is empty.');
+                }
+                isPlaylist = true;
+                playlistName = spotifyPlaylist.name;
+                searchQueries = spotifyPlaylist.tracks.map(t => ({ query: t.query, title: t.title }));
+            } else if (url.includes('spotify.com/track/')) {
+                // Handle single track
                 const spotifyTrack = await getSpotifyTrackInfo(url);
                 if (!spotifyTrack) {
                     return message.reply('Could not find that Spotify track.');
                 }
-                searchQuery = spotifyTrack.query;
-                trackTitle = spotifyTrack.title;
+                searchQueries = [{ query: spotifyTrack.query, title: spotifyTrack.title }];
             } else {
-                return message.reply('Please provide a valid Spotify URL!');
+                return message.reply('Please provide a valid Spotify track or playlist URL!');
             }
 
             // Create or get player with best quality settings
@@ -153,23 +204,39 @@ client.on('messageCreate', async message => {
             // Connect to voice channel
             if (!player.connected) await player.connect();
 
-            // Search for track on SoundCloud (no bot detection)
-            console.log(`Searching SoundCloud for: ${searchQuery}`);
-            const res = await player.search({ query: `scsearch:${searchQuery}` }, message.author);
-            console.log(`Search result:`, res);
+            if (isPlaylist) {
+                // Handle playlist - search and add all tracks
+                message.reply(`Loading playlist: **${playlistName}** (${searchQueries.length} tracks)...`);
 
-            if (res.loadType === 'error' || res.loadType === 'empty') {
-                console.error('Search failed:', res);
-                return message.reply(`Failed to load the track or no results found. Error: ${res.exception?.message || 'Unknown'}`);
-            }
+                let addedCount = 0;
+                for (const track of searchQueries) {
+                    try {
+                        console.log(`Searching SoundCloud for: ${track.query}`);
+                        const res = await player.search({ query: `scsearch:${track.query}` }, message.author);
 
-            // Add track to queue
-            if (res.loadType === 'playlist') {
-                player.queue.add(res.tracks);
-                message.reply(`Added playlist: **${res.playlist.name}** (${res.tracks.length} tracks)`);
+                        if (res.loadType !== 'error' && res.loadType !== 'empty' && res.tracks.length > 0) {
+                            player.queue.add(res.tracks[0]);
+                            addedCount++;
+                        }
+                    } catch (err) {
+                        console.error(`Failed to add track: ${track.title}`, err);
+                    }
+                }
+
+                message.reply(`Added **${addedCount}** tracks from playlist: **${playlistName}**`);
             } else {
+                // Handle single track
+                const track = searchQueries[0];
+                console.log(`Searching SoundCloud for: ${track.query}`);
+                const res = await player.search({ query: `scsearch:${track.query}` }, message.author);
+
+                if (res.loadType === 'error' || res.loadType === 'empty') {
+                    console.error('Search failed:', res);
+                    return message.reply(`Failed to load the track or no results found. Error: ${res.exception?.message || 'Unknown'}`);
+                }
+
                 player.queue.add(res.tracks[0]);
-                message.reply(`Added to queue: **${trackTitle || res.tracks[0].info.title}**`);
+                message.reply(`Added to queue: **${track.title || res.tracks[0].info.title}**`);
             }
 
             // Play if not already playing
