@@ -202,8 +202,13 @@ client.on('messageCreate', async message => {
             let searchQueries = [];
             let isPlaylist = false;
             let playlistName = '';
+            let directUrl = null;
 
-            if (url.includes('spotify.com/playlist/')) {
+            if (url.includes('soundcloud.com')) {
+                // Handle direct SoundCloud URL
+                directUrl = url;
+                searchQueries = [{ query: url, title: 'SoundCloud Track' }];
+            } else if (url.includes('spotify.com/playlist/')) {
                 // Handle playlist
                 const spotifyPlaylist = await getSpotifyPlaylistInfo(url);
                 if (!spotifyPlaylist) {
@@ -223,7 +228,7 @@ client.on('messageCreate', async message => {
                 }
                 searchQueries = [{ query: spotifyTrack.query, title: spotifyTrack.title }];
             } else {
-                return message.reply('Please provide a valid Spotify track or playlist URL!');
+                return message.reply('Please provide a valid Spotify or SoundCloud URL!');
             }
 
             // Create or get player with best quality settings
@@ -264,8 +269,11 @@ client.on('messageCreate', async message => {
             } else {
                 // Handle single track
                 const track = searchQueries[0];
-                console.log(`Searching SoundCloud for: ${track.query}`);
-                const res = await player.search({ query: `scsearch:${track.query}` }, message.author);
+
+                // Use direct URL for SoundCloud, search for Spotify tracks
+                const searchQuery = directUrl ? track.query : `scsearch:${track.query}`;
+                console.log(`Loading track: ${searchQuery}`);
+                const res = await player.search({ query: searchQuery }, message.author);
 
                 if (res.loadType === 'error' || res.loadType === 'empty') {
                     console.error('Search failed:', res);
