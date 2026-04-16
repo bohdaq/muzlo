@@ -273,9 +273,10 @@ client.on('messageCreate', async message => {
                 // Use direct URL for SoundCloud, search for Spotify tracks
                 let searchQuery;
                 if (directUrl) {
-                    // For direct URLs, don't use any search prefix
-                    searchQuery = track.query;
-                    console.log(`Loading direct URL: ${searchQuery}`);
+                    // For direct SoundCloud URLs, we still need to search for them
+                    // because Lavalink needs to resolve the track info
+                    searchQuery = `scsearch:${track.query}`;
+                    console.log(`Searching for SoundCloud URL: ${searchQuery}`);
                 } else {
                     // For Spotify tracks, search SoundCloud
                     searchQuery = `scsearch:${track.query}`;
