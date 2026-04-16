@@ -271,9 +271,19 @@ client.on('messageCreate', async message => {
                 const track = searchQueries[0];
 
                 // Use direct URL for SoundCloud, search for Spotify tracks
-                const searchQuery = directUrl ? track.query : `scsearch:${track.query}`;
-                console.log(`Loading track: ${searchQuery}`);
+                let searchQuery;
+                if (directUrl) {
+                    // For direct URLs, don't use any search prefix
+                    searchQuery = track.query;
+                    console.log(`Loading direct URL: ${searchQuery}`);
+                } else {
+                    // For Spotify tracks, search SoundCloud
+                    searchQuery = `scsearch:${track.query}`;
+                    console.log(`Searching SoundCloud for: ${track.query}`);
+                }
+
                 const res = await player.search({ query: searchQuery }, message.author);
+                console.log(`Search result loadType: ${res.loadType}`);
 
                 if (res.loadType === 'error' || res.loadType === 'empty') {
                     console.error('Search failed:', res);
