@@ -376,8 +376,8 @@ manager.on('trackStart', (player, track) => {
 
 manager.on('queueEnd', (player) => {
     const channel = client.channels.cache.get(player.textChannelId);
-    if (channel) channel.send('Queue finished. Leaving voice channel.');
-    player.destroy();
+    if (channel) channel.send('Queue finished. Use `/stop` to leave the voice channel or `/play` to add more songs.');
+    // Don't auto-destroy - let users manually stop the bot
 });
 
 client.login(process.env.DISCORD_TOKEN);
